@@ -48,7 +48,7 @@ const NotFound = () => {
               className="w-full sm:w-auto btn-primary"
             >
               <ApperIcon name="Home" className="h-4 w-4 mr-2" />
-              Back to TaskFlow
+              Back to GotrajTasks 2
             </Link>
             
             <motion.button

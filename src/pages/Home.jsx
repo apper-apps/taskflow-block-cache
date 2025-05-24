@@ -32,7 +32,7 @@ const Home = () => {
               </div>
               <div>
                 <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  GotrajTasks
+                  GotrajTasks 2
                 </h1>
                 <p className="text-xs text-surface-500 hidden sm:block">Efficient Task Management</p>
               </div>
@@ -126,7 +126,7 @@ const Home = () => {
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
                 <ApperIcon name="CheckSquare" className="h-4 w-4 text-white" />
               </div>
-              <span className="text-lg font-semibold text-surface-900 dark:text-white">GotrajTasks</span>
+              <span className="text-lg font-semibold text-surface-900 dark:text-white">GotrajTasks 2</span>
             </div>
             
             <div className="flex items-center space-x-6 text-sm text-surface-600 dark:text-surface-400">

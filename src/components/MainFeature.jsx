@@ -19,7 +19,7 @@ const MainFeature = () => {
 
   // Load tasks from localStorage on component mount
   useEffect(() => {
-    const savedTasks = localStorage.getItem('gotrajtasks-tasks')
+    const savedTasks = localStorage.getItem('gotrajtasks-2-tasks')
     if (savedTasks) {
       setTasks(JSON.parse(savedTasks))
     }
@@ -27,7 +27,7 @@ const MainFeature = () => {
 
   // Save tasks to localStorage whenever tasks change
   useEffect(() => {
-    localStorage.setItem('gotrajtasks-tasks', JSON.stringify(tasks))
+    localStorage.setItem('gotrajtasks-2-tasks', JSON.stringify(tasks))
   }, [tasks])
 
   const handleInputChange = (e) => {
@@ -385,7 +385,7 @@ const MainFeature = () => {
             </h3>
             <p className="text-surface-600 dark:text-surface-400 mb-6">
               {filter === 'all' 
-                ? "Create your first task to get started with GotrajTasks"
+                ? "Create your first task to get started with GotrajTasks 2"
                 : `You don't have any ${filter} tasks right now`
               }
             </p>
