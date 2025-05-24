@@ -1,25 +1,22 @@
 import { motion } from 'framer-motion'
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { AuthContext } from '../App'
-import { motion } from 'framer-motion'
 import MainFeature from '../components/MainFeature'
 import ApperIcon from '../components/ApperIcon'
 
+const Home = () => {
   const { logout } = useContext(AuthContext)
   const { user } = useSelector((state) => state.user)
-
-const Home = () => {
   const [isDarkMode, setIsDarkMode] = useState(false)
 
-      <motion.header
+  const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode)
     document.documentElement.classList.toggle('dark')
   }
 
   return (
     <div className="min-h-screen">
-          <div className="flex items-center justify-between h-16">
       <motion.header 
         className="sticky top-0 z-50 bg-white/80 dark:bg-surface-900/80 backdrop-blur-md border-b border-surface-200 dark:border-surface-700"
         initial={{ y: -100 }}
@@ -29,36 +26,6 @@ const Home = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
             <motion.div 
-            
-            <div className="flex items-center space-x-4">
-              {user && (
-                <div className="flex items-center space-x-3">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-sm font-medium text-surface-900 dark:text-white">
-                      {user.firstName} {user.lastName}
-                    </p>
-                    <p className="text-xs text-surface-600 dark:text-surface-400">
-                      {user.emailAddress}
-                    </p>
-                  </div>
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">
-                      {user.firstName?.[0]}{user.lastName?.[0]}
-                    </span>
-                  </div>
-                </div>
-              )}
-              
-              <motion.button
-                onClick={logout}
-                className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-xl transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                title="Logout"
-              >
-                <ApperIcon name="LogOut" className="h-5 w-5 text-surface-600 dark:text-surface-400" />
-              </motion.button>
-            </div>
               className="flex items-center space-x-3"
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
@@ -91,6 +58,35 @@ const Home = () => {
                 <ApperIcon name="Zap" className="h-4 w-4" />
                 <span>Boost your productivity</span>
               </div>
+              
+              {user && (
+                <div className="flex items-center space-x-3">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-medium text-surface-900 dark:text-white">
+                      {user.firstName} {user.lastName}
+                    </p>
+                    <p className="text-xs text-surface-600 dark:text-surface-400">
+                      {user.emailAddress}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">
+                      {user.firstName?.[0]}{user.lastName?.[0]}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              <motion.button
+                onClick={logout}
+                className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-xl transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                title="Logout"
+              >
+                <ApperIcon name="LogOut" className="h-5 w-5 text-surface-600 dark:text-surface-400" />
+              </motion.button>
+            </div>
             </div>
           </div>
         </div>
