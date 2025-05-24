@@ -87,7 +87,6 @@ const Home = () => {
                 <ApperIcon name="LogOut" className="h-5 w-5 text-surface-600 dark:text-surface-400" />
               </motion.button>
             </div>
-            </div>
           </div>
         </div>
       </motion.header>
