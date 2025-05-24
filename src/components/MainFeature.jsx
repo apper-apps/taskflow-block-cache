@@ -3,9 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-toastify'
 import { format } from 'date-fns'
 import ApperIcon from './ApperIcon'
+import TaskService from '../services/TaskService'
 
 const MainFeature = () => {
   const [tasks, setTasks] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [filter, setFilter] = useState('all')
   const [sortBy, setSortBy] = useState('dueDate')
@@ -16,19 +19,28 @@ const MainFeature = () => {
     dueDate: ''
   })
   const [editingTask, setEditingTask] = useState(null)
+  const [error, setError] = useState('')
 
-  // Load tasks from localStorage on component mount
+  // Load tasks from database on component mount
   useEffect(() => {
-    const savedTasks = localStorage.getItem('gotrajtasks-2-tasks')
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks))
-    }
+    loadTasks()
   }, [])
 
-  // Save tasks to localStorage whenever tasks change
-  useEffect(() => {
-    localStorage.setItem('gotrajtasks-2-tasks', JSON.stringify(tasks))
-  }, [tasks])
+  const loadTasks = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const fetchedTasks = await TaskService.fetchTasks({ sortBy })
+      setTasks(fetchedTasks || [])
+    } catch (error) {
+      console.error('Error loading tasks:', error)
+      setError('Failed to load tasks. Please try again.')
+      toast.error('Failed to load tasks')
+      setTasks([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleInputChange = (e) => {
     setFormData({
@@ -37,57 +49,88 @@ const MainFeature = () => {
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    if (submitting) return
     
     if (!formData.title.trim()) {
       toast.error('Task title is required')
       return
     }
 
-    const taskData = {
-      id: editingTask?.id || Date.now().toString(),
-      title: formData.title.trim(),
-      description: formData.description.trim(),
-      priority: formData.priority,
-      dueDate: formData.dueDate,
-      status: editingTask?.status || 'pending',
-      createdAt: editingTask?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+    try {
+      setSubmitting(true)
+      setError('')
+      
+      const taskData = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        priority: formData.priority,
+        dueDate: formData.dueDate,
+        status: editingTask?.status || 'pending'
+      }
 
-    if (editingTask) {
-      setTasks(tasks.map(task => task.id === editingTask.id ? taskData : task))
-      toast.success('Task updated successfully!')
-      setEditingTask(null)
-    } else {
-      setTasks([...tasks, taskData])
-      toast.success('Task created successfully!')
-    }
+      if (editingTask) {
+        await TaskService.updateTask(editingTask.Id, taskData)
+        toast.success('Task updated successfully!')
+        setEditingTask(null)
+      } else {
+        await TaskService.createTask(taskData)
+        toast.success('Task created successfully!')
+      }
 
-    setFormData({ title: '', description: '', priority: 'medium', dueDate: '' })
-    setIsFormOpen(false)
+      setFormData({ title: '', description: '', priority: 'medium', dueDate: '' })
+      setIsFormOpen(false)
+      
+      // Reload tasks to show updated data
+      await loadTasks()
+    } catch (error) {
+      console.error('Error saving task:', error)
+      setError(error.message)
+      toast.error(error.message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const toggleTaskStatus = (taskId) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? { 
-            ...task, 
-            status: task.status === 'completed' ? 'pending' : 'completed',
-            updatedAt: new Date().toISOString()
-          }
-        : task
-    ))
+  const toggleTaskStatus = async (taskId) => {
+    try {
+      const task = tasks.find(t => t.Id === taskId)
+      if (!task) return
+      
+      const newStatus = task.status === 'completed' ? 'pending' : 'completed'
+      
+      await TaskService.updateTask(taskId, {
+        ...task,
+        status: newStatus
+      })
+      
+      toast.success(`Task marked as ${newStatus}!`)
+      
+      // Reload tasks to show updated data
+      await loadTasks()
+    } catch (error) {
+      console.error('Error updating task status:', error)
+      toast.error('Failed to update task status')
+    }
+  }
+
+  const deleteTask = async (taskId) => {
+    if (!window.confirm('Are you sure you want to delete this task?')) {
+      return
+    }
     
-    const task = tasks.find(t => t.id === taskId)
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed'
-    toast.success(`Task marked as ${newStatus}!`)
-  }
-
-  const deleteTask = (taskId) => {
-    setTasks(tasks.filter(task => task.id !== taskId))
-    toast.success('Task deleted successfully!')
+    try {
+      await TaskService.deleteTask(taskId)
+      toast.success('Task deleted successfully!')
+      
+      // Reload tasks to show updated data
+      await loadTasks()
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      toast.error('Failed to delete task')
+    }
   }
 
   const editTask = (task) => {
@@ -122,8 +165,8 @@ const MainFeature = () => {
   }
 
   const filteredTasks = tasks.filter(task => {
-    if (filter === 'completed') return task.status === 'completed'
-    if (filter === 'pending') return task.status === 'pending'
+    if (filter === 'completed') return task?.status === 'completed'
+    if (filter === 'pending') return task?.status === 'pending'
     return true
   })
 
@@ -131,24 +174,24 @@ const MainFeature = () => {
     switch (sortBy) {
       case 'priority':
         const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 }
-        return priorityOrder[b.priority] - priorityOrder[a.priority]
+        return priorityOrder[b?.priority] - priorityOrder[a?.priority]
       case 'dueDate':
-        if (!a.dueDate && !b.dueDate) return 0
-        if (!a.dueDate) return 1
-        if (!b.dueDate) return -1
-        return new Date(a.dueDate) - new Date(b.dueDate)
+        if (!a?.dueDate && !b?.dueDate) return 0
+        if (!a?.dueDate) return 1
+        if (!b?.dueDate) return -1
+        return new Date(a?.dueDate) - new Date(b?.dueDate)
       case 'title':
-        return a.title.localeCompare(b.title)
+        return a?.title?.localeCompare(b?.title || '') || 0
       default:
-        return new Date(b.createdAt) - new Date(a.createdAt)
+        return new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0)
     }
   })
 
   const taskStats = {
     total: tasks.length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-    pending: tasks.filter(t => t.status === 'pending').length,
-    urgent: tasks.filter(t => t.priority === 'urgent' && t.status === 'pending').length
+    completed: tasks.filter(t => t?.status === 'completed').length,
+    pending: tasks.filter(t => t?.status === 'pending').length,
+    urgent: tasks.filter(t => t?.priority === 'urgent' && t?.status === 'pending').length
   }
 
   return (
@@ -185,6 +228,17 @@ const MainFeature = () => {
           </motion.button>
         </div>
       </motion.div>
+
+      {/* Error Display */}
+      {error && (
+        <motion.div 
+          className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
+        </motion.div>
+      )}
 
       {/* Stats Overview */}
       <motion.div 
@@ -231,7 +285,9 @@ const MainFeature = () => {
           </label>
           <select 
             value={filter} 
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value)
+            }}
             className="input-field"
           >
             <option value="all">All Tasks</option>
@@ -246,7 +302,10 @@ const MainFeature = () => {
           </label>
           <select 
             value={sortBy} 
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => {
+              setSortBy(e.target.value)
+              loadTasks()
+            }}
             className="input-field"
           >
             <option value="dueDate">Due Date</option>
@@ -352,8 +411,9 @@ const MainFeature = () => {
                   <button
                     type="submit"
                     className="btn-primary flex-1"
+                    disabled={submitting}
                   >
-                    {editingTask ? 'Update Task' : 'Create Task'}
+                    {submitting ? 'Saving...' : (editingTask ? 'Update Task' : 'Create Task')}
                   </button>
                   <button
                     type="button"
@@ -375,7 +435,19 @@ const MainFeature = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.3 }}
       >
-        {sortedTasks.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12 md:py-16">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-surface-100 dark:bg-surface-800 rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <ApperIcon name="Loader" className="h-8 w-8 md:h-10 md:w-10 text-surface-400 animate-spin" />
+            </div>
+            <h3 className="text-lg md:text-xl font-semibold text-surface-900 dark:text-white mb-2">
+              Loading tasks...
+            </h3>
+            <p className="text-surface-600 dark:text-surface-400">
+              Please wait while we fetch your tasks
+            </p>
+          </div>
+        ) : sortedTasks.length === 0 ? (
           <div className="text-center py-12 md:py-16">
             <div className="w-16 h-16 md:w-20 md:h-20 bg-surface-100 dark:bg-surface-800 rounded-3xl flex items-center justify-center mx-auto mb-4">
               <ApperIcon name="FileText" className="h-8 w-8 md:h-10 md:w-10 text-surface-400" />
@@ -404,7 +476,7 @@ const MainFeature = () => {
             <AnimatePresence>
               {sortedTasks.map((task, index) => (
                 <motion.div
-                  key={task.id}
+                  key={task.Id}
                   className={`task-card ${task.status === 'completed' ? 'opacity-75' : ''}`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -414,7 +486,7 @@ const MainFeature = () => {
                 >
                   <div className="flex items-start space-x-3 md:space-x-4">
                     <motion.button
-                      onClick={() => toggleTaskStatus(task.id)}
+                      onClick={() => toggleTaskStatus(task.Id)}
                       className={`mt-1 w-5 h-5 md:w-6 md:h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
                         task.status === 'completed'
                           ? 'bg-primary border-primary text-white'
@@ -433,34 +505,34 @@ const MainFeature = () => {
                         <h4 className={`font-semibold text-surface-900 dark:text-white ${
                           task.status === 'completed' ? 'line-through' : ''
                         }`}>
-                          {task.title}
+                          {task?.title || task?.Name || 'Untitled Task'}
                         </h4>
                         
                         <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                            <ApperIcon name={getPriorityIcon(task.priority)} className="h-3 w-3 inline mr-1" />
-                            {task.priority}
+                          <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getPriorityColor(task?.priority)}`}>
+                            <ApperIcon name={getPriorityIcon(task?.priority)} className="h-3 w-3 inline mr-1" />
+                            {task?.priority}
                           </span>
                         </div>
                       </div>
 
-                      {task.description && (
+                      {task?.description && (
                         <p className="text-sm text-surface-600 dark:text-surface-400 mb-2 line-clamp-2">
-                          {task.description}
+                          {task?.description}
                         </p>
                       )}
 
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div className="flex items-center space-x-4 text-xs text-surface-500 dark:text-surface-400">
-                          {task.dueDate && (
+                          {task?.dueDate && (
                             <div className="flex items-center space-x-1">
                               <ApperIcon name="Calendar" className="h-3 w-3" />
-                              <span>{format(new Date(task.dueDate), 'MMM dd, yyyy')}</span>
+                              <span>{format(new Date(task?.dueDate), 'MMM dd, yyyy')}</span>
                             </div>
                           )}
                           <div className="flex items-center space-x-1">
                             <ApperIcon name="Clock" className="h-3 w-3" />
-                            <span>{format(new Date(task.createdAt), 'MMM dd')}</span>
+                            <span>{format(new Date(task?.createdAt || task?.CreatedOn), 'MMM dd')}</span>
                           </div>
                         </div>
 
@@ -474,7 +546,7 @@ const MainFeature = () => {
                             <ApperIcon name="Edit" className="h-4 w-4 text-surface-500" />
                           </motion.button>
                           <motion.button
-                            onClick={() => deleteTask(task.id)}
+                            onClick={() => deleteTask(task.Id)}
                             className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
